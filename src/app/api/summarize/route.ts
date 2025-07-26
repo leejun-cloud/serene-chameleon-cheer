@@ -52,16 +52,35 @@ export async function POST(request: Request) {
       imageUrl = new URL(imageUrl, url).href;
     }
 
-    $('script, style, nav, footer, header, aside, form').remove();
+    // More aggressive cleaning of irrelevant content
+    $('script, style, nav, footer, header, aside, form, .ad, .advert, .sidebar, .comments, #comments, .social-share, .author-bio').remove();
     
     let mainContent;
-    const mainSelectors = ['main', 'article', 'div[role="main"]', 'div#main', 'div#content', '.post-content'];
+    // Expanded list of selectors to find the main article content
+    const mainSelectors = [
+        'article', 
+        'main', 
+        '.post-content', 
+        '.entry-content', 
+        'div[role="main"]', 
+        '#content', 
+        '#main',
+        '.post',
+        '.story-content'
+    ];
+    
     for (const selector of mainSelectors) {
         if ($(selector).length) {
-            mainContent = $(selector).text();
-            break;
+            const content = $(selector).text();
+            // Check if the content found is substantial enough
+            if (content.replace(/\s+/g, ' ').trim().length > 200) {
+                mainContent = content;
+                break;
+            }
         }
     }
+
+    // Fallback to body only if no specific container yields enough content
     if (!mainContent) {
         mainContent = $('body').text();
     }
@@ -69,7 +88,7 @@ export async function POST(request: Request) {
     const cleanedContent = mainContent.replace(/\s\s+/g, ' ').trim();
 
     if (cleanedContent.length < 150) {
-      throw new Error('Could not extract enough meaningful content from the URL to summarize.');
+      throw new Error('Failed to extract sufficient content. The website might use a complex layout or dynamic content loading that is not supported.');
     }
 
     const model = genAI.getGenerativeModel({ 
