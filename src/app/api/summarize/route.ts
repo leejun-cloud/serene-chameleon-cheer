@@ -2,26 +2,6 @@ import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as cheerio from 'cheerio';
 
-// Helper function to extract JSON from a string that might contain markdown
-function extractJson(str: string): any | null {
-  const match = str.match(/```json\n([\s\S]*?)\n```/);
-  if (match && match[1]) {
-    try {
-      return JSON.parse(match[1]);
-    } catch (e) {
-      console.error("Failed to parse extracted JSON:", e);
-      return null;
-    }
-  }
-  // Fallback for string that is just the JSON object
-  try {
-    return JSON.parse(str);
-  } catch(e) {
-    // The string is not a valid JSON, so we return null.
-  }
-  return null;
-}
-
 export async function POST(request: Request) {
   try {
     const { url, apiKey } = await request.json();
@@ -50,10 +30,13 @@ export async function POST(request: Request) {
     const html = await response.text();
     const $ = cheerio.load(html);
 
+    // 1. Extract Title
     const title = $('head > title').text() || $('h1').first().text();
 
+    // 2. Extract Representative Image (og:image is best)
     let imageUrl = $('meta[property="og:image"]').attr('content');
     if (!imageUrl) {
+      // Fallback to the first large image
       $('img').each((i, elem) => {
         const src = $(elem).attr('src');
         if (src) {
@@ -61,15 +44,18 @@ export async function POST(request: Request) {
           const height = Number($(elem).attr('height')) || 0;
           if (width > 200 || height > 200) {
             imageUrl = src;
-            return false;
+            return false; // stop iterating
           }
         }
       });
     }
+    // Ensure the URL is absolute
     if (imageUrl && !imageUrl.startsWith('http')) {
       imageUrl = new URL(imageUrl, url).href;
     }
 
+
+    // 3. Improved content extraction
     $('script, style, nav, footer, header, aside, form').remove();
     
     let mainContent;
@@ -86,44 +72,29 @@ export async function POST(request: Request) {
     
     const cleanedContent = mainContent.replace(/\s\s+/g, ' ').trim();
 
-    if (cleanedContent.length < 150) {
-      throw new Error('Could not extract enough meaningful content from the URL to summarize.');
+    if (!cleanedContent) {
+      throw new Error('Could not extract meaningful content from the URL.');
     }
 
+    // 4. More robust prompt for Gemini
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const prompt = `
-      You are an expert content summarizer. Analyze the following text and provide a summary.
-      
-      Rules:
-      1. The summary must be 3-4 sentences long.
-      2. The summary must be in the same language as the original text.
-      3. Your entire response MUST be a single valid JSON object.
-      4. The JSON object must have a single key: "summary". The value should be the summary text as a string.
-      
-      Example Response:
-      \`\`\`json
-      {
-        "summary": "This is a summary of the article in the same language."
-      }
-      \`\`\`
+    const prompt = `You are a text summarization expert. Your task is to create a concise summary of the provided text.
+Follow these rules strictly:
+1. The summary must be 3-4 sentences long.
+2. The summary MUST be in the exact same language as the original text provided.
+3. Your response must contain ONLY the summary text, with no additional explanations, greetings, or introductory phrases like "Here is the summary:".
 
-      Original Text to Summarize:
-      ---
-      ${cleanedContent.substring(0, 8000)}
-      ---
-    `;
+Original Text:
+---
+${cleanedContent.substring(0, 10000)}
+---
+`;
 
     const result = await model.generateContent(prompt);
-    const aiResponseText = await result.response.text();
-    
-    const parsedJson = extractJson(aiResponseText);
+    const summaryResponse = await result.response;
+    const summary = summaryResponse.text();
 
-    if (!parsedJson || !parsedJson.summary) {
-      console.error("AI returned an invalid format. Raw response:", aiResponseText);
-      throw new Error("AI returned an invalid format. Please try a different article or prompt.");
-    }
-
-    return NextResponse.json({ title, summary: parsedJson.summary, imageUrl: imageUrl || '' });
+    return NextResponse.json({ title, summary, imageUrl: imageUrl || '' });
 
   } catch (error: any) {
     console.error('API Summarize Error:', error);
