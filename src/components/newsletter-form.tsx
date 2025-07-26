@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
-import { PlusCircle, Trash2, Loader2, Wand2 } from "lucide-react";
+import { PlusCircle, Trash2, Loader2, Wand2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -173,19 +173,36 @@ export function NewsletterForm({ onFormChange, initialData, newsletterId }: News
                     </FormItem>
                   )}
                 />
-                <Button
-                  type="button"
-                  onClick={() => handleSummarize(index)}
-                  disabled={summarizingIndex !== null}
-                  className="w-full"
-                >
-                  {summarizingIndex === index ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Wand2 className="mr-2 h-4 w-4" />
-                  )}
-                  Fetch & Summarize Article
-                </Button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => handleSummarize(index)}
+                    disabled={summarizingIndex !== null}
+                    className="w-full"
+                  >
+                    {summarizingIndex === index ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Wand2 className="mr-2 h-4 w-4" />
+                    )}
+                    가져오기 및 요약
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    asChild
+                    className="w-full"
+                    disabled={!watch(`articles.${index}.url`)}
+                  >
+                    <a 
+                      href={watch(`articles.${index}.url`)} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                    >
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      기사 보기
+                    </a>
+                  </Button>
+                </div>
                 <FormField
                   control={form.control}
                   name={`articles.${index}.title`}
@@ -238,7 +255,7 @@ export function NewsletterForm({ onFormChange, initialData, newsletterId }: News
             onClick={() => append({ url: "", title: "", summary: "", imageUrl: "" })}
             className="w-full mt-4"
           >
-            <PlusCircle className="mr-2 h-4 w-4" /> Add Another Article
+            <PlusCircle className="mr-2 h-4 w-4" /> 다른 기사 추가
           </Button>
         </div>
       </form>
