@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
-import { PlusCircle, Trash2, Loader2, Wand2, ExternalLink } from "lucide-react";
+import { PlusCircle, Trash2, Loader2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -73,6 +73,7 @@ export function NewsletterForm({ onFormChange, initialData, newsletterId }: News
     return () => subscription.unsubscribe();
   }, [watch, onFormChange, form]);
 
+
   async function handleSummarize(index: number) {
     const url = form.getValues(`articles.${index}.url`);
     if (!url) {
@@ -125,7 +126,7 @@ export function NewsletterForm({ onFormChange, initialData, newsletterId }: News
     <Form {...form}>
       <form id="newsletter-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-4 p-4 border rounded-lg">
-          <FormField
+           <FormField
             control={form.control}
             name="newsletterTitle"
             render={({ field }) => (
@@ -218,44 +219,27 @@ export function NewsletterForm({ onFormChange, initialData, newsletterId }: News
                     </FormItem>
                   )}
                 />
-                {watch(`articles.${index}.url`) && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    asChild
-                    className="w-full"
-                  >
-                    <a 
-                      href={watch(`articles.${index}.url`)} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                    >
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      기사 보기
-                    </a>
-                  </Button>
-                )}
                 <Button
                   type="button"
                   variant="destructive"
-                  size="sm"
-                  className="absolute top-4 right-4"
+                  size="icon"
                   onClick={() => remove(index)}
+                  className="absolute top-2 right-2"
+                  disabled={fields.length === 1}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
             ))}
-            <Button
-              type="button"
-              variant="secondary"
-              className="w-full"
-              onClick={() => append({ url: "", title: "", summary: "", imageUrl: "" })}
-            >
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Add Another Article
-            </Button>
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => append({ url: "", title: "", summary: "", imageUrl: "" })}
+            className="w-full mt-4"
+          >
+            <PlusCircle className="mr-2 h-4 w-4" /> Add Another Article
+          </Button>
         </div>
       </form>
     </Form>
