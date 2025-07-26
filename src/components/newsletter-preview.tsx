@@ -113,14 +113,6 @@ export function NewsletterPreview({ data, isReadOnly = false }: NewsletterPrevie
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${newsletterData.newsletterTitle}</title>
         <script src="https://cdn.tailwindcss.com"></script>
-        <style>
-          body { font-family: sans-serif; }
-          .prose { color: #374151; line-height: 1.6; }
-          .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 { color: #111827; }
-          .prose p { margin-top: 0; margin-bottom: 1rem; }
-          .prose a { color: #2563eb; }
-          .prose img { border-radius: 0.5rem; }
-        </style>
       </head>
       <body class="bg-gray-100 p-4 md:p-8">
         <div class="${cn('w-full max-w-2xl mx-auto shadow-lg bg-white rounded-lg overflow-hidden', styles.card)}">
