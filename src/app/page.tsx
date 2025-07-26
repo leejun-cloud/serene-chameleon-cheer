@@ -1,50 +1,48 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MadeWithDyad } from "@/components/made-with-dyad";
-import Link from "next/link";
-import { PlusCircle } from "lucide-react";
+import { useState, useEffect } from 'react';
+import { NewsletterForm, NewsletterFormData } from '@/components/newsletter-form';
+import { NewsletterPreview } from '@/components/newsletter-preview';
 
-export default function DashboardPage() {
-  // Note: Newsletter history will be stored in-memory for now.
-  // A database is required for persistent storage.
-  const newsletterHistory: any[] = []; // Placeholder for history
+export default function Home() {
+  const [formData, setFormData] = useState<NewsletterFormData | null>(null);
+  const [apiKey, setApiKey] = useState("");
+
+  // Load API key from local storage on initial render
+  useEffect(() => {
+    const storedApiKey = localStorage.getItem("geminiApiKey");
+    if (storedApiKey) {
+      setApiKey(storedApiKey);
+    }
+  }, []);
+
+  // Save API key to local storage whenever it changes
+  useEffect(() => {
+    if (apiKey) {
+      localStorage.setItem("geminiApiKey", apiKey);
+    } else {
+      localStorage.removeItem("geminiApiKey");
+    }
+  }, [apiKey]);
 
   return (
-    <>
-      <div className="container mx-auto p-4 sm:p-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-4xl font-bold">My Newsletters</h1>
-          <Button asChild>
-            <Link href="/create">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Create New Newsletter
-            </Link>
-          </Button>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>History</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {newsletterHistory.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <p>You haven't created any newsletters yet.</p>
-                <p className="text-sm mt-2">
-                  (Database integration is required to save history permanently)
-                </p>
-              </div>
-            ) : (
-              <ul className="space-y-4">
-                {/* History items will be listed here */}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+    <main className="container mx-auto p-4 md:p-8">
+      <div className="text-center mb-8">
+        <h1 className="text-4xl font-bold tracking-tight">AI Newsletter Builder</h1>
+        <p className="text-muted-foreground mt-2">
+          Create beautiful newsletters in minutes. Just drop in article links and let AI do the rest.
+        </p>
       </div>
-      <MadeWithDyad />
-    </>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        <div className="lg:sticky top-8">
+          <NewsletterForm 
+            onFormChange={setFormData} 
+            apiKey={apiKey}
+            setApiKey={setApiKey}
+          />
+        </div>
+        <NewsletterPreview data={formData} apiKey={apiKey} />
+      </div>
+    </main>
   );
 }

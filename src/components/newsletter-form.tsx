@@ -37,11 +37,12 @@ export type NewsletterFormData = z.infer<typeof formSchema>;
 
 interface NewsletterFormProps {
   onFormChange: Dispatch<SetStateAction<NewsletterFormData | null>>;
+  apiKey: string;
+  setApiKey: Dispatch<SetStateAction<string>>;
 }
 
-export function NewsletterForm({ onFormChange }: NewsletterFormProps) {
+export function NewsletterForm({ onFormChange, apiKey, setApiKey }: NewsletterFormProps) {
   const [summarizingIndex, setSummarizingIndex] = useState<number | null>(null);
-  const [apiKey, setApiKey] = useState("");
 
   const form = useForm<NewsletterFormData>({
     resolver: zodResolver(formSchema),
@@ -52,40 +53,17 @@ export function NewsletterForm({ onFormChange }: NewsletterFormProps) {
     },
   });
 
-  // Load API key from local storage on initial render
-  useEffect(() => {
-    const storedApiKey = localStorage.getItem("geminiApiKey");
-    if (storedApiKey) {
-      setApiKey(storedApiKey);
-    }
-  }, []); // Empty dependency array ensures this runs only once on mount
-
-  // Save API key to local storage whenever it changes
-  useEffect(() => {
-    if (apiKey) {
-      localStorage.setItem("geminiApiKey", apiKey);
-    } else {
-      // If user clears the input, remove it from storage
-      localStorage.removeItem("geminiApiKey");
-    }
-  }, [apiKey]);
-
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "articles",
   });
 
-  // This is the correct way to subscribe to form changes and update the parent
-  // without causing an infinite loop.
   const { watch } = form;
   useEffect(() => {
-    // Set initial data for the preview on first render
     onFormChange(form.getValues());
-    
     const subscription = watch((value) => {
       onFormChange(value as NewsletterFormData);
     });
-    
     return () => subscription.unsubscribe();
   }, [watch, onFormChange, form]);
 
@@ -151,7 +129,7 @@ export function NewsletterForm({ onFormChange }: NewsletterFormProps) {
               />
             </FormControl>
             <FormDescription>
-              Your key is stored in your browser for convenience and is not sent to our servers.
+              Your key is stored in your browser for convenience.
             </FormDescription>
           </FormItem>
           <Separator />
