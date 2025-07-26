@@ -15,6 +15,8 @@ const generateNewsletterHtml = (data: NewsletterFormData) => {
   const primaryBgDark = 'hsl(0 0% 98%)'; // --primary for dark theme
   const primaryFgDark = 'hsl(0 0% 9%)'; // --primary-foreground for dark theme
 
+  const imageUrlHtml = data.imageUrl ? `<img src="${data.imageUrl}" alt="${data.title}" style="max-width: 100%; height: auto; display: block; margin-bottom: 20px; border-radius: 8px;">` : '';
+
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -56,6 +58,7 @@ const generateNewsletterHtml = (data: NewsletterFormData) => {
       <p>Subject: ${data.subject}</p>
     </div>
     <div class="content">
+      ${imageUrlHtml}
       <p>${data.content.replace(/\n/g, '<br>')}</p>
       <div style="text-align: center; padding-top: 20px;">
         <a href="${data.ctaLink}" class="cta-button" target="_blank">${data.ctaText}</a>
@@ -94,6 +97,15 @@ export function NewsletterPreview({ data }: NewsletterPreviewProps) {
       <CardContent className="p-6 space-y-6">
         {data ? (
           <>
+            {data.imageUrl && (
+              <div className="relative w-full h-48 overflow-hidden rounded-lg">
+                <img
+                  src={data.imageUrl}
+                  alt="Newsletter Image"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              </div>
+            )}
             <div className="prose prose-sm max-w-none text-foreground">
               <p className="whitespace-pre-wrap">{data.content}</p>
             </div>
