@@ -2,22 +2,22 @@ import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as cheerio from 'cheerio';
 
-const geminiApiKey = process.env.GEMINI_API_KEY;
-const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null;
-
 export async function POST(request: Request) {
-  if (!genAI) {
-    return NextResponse.json(
-      { error: 'AI service is not configured. Please set the GEMINI_API_KEY.' },
-      { status: 500 }
-    );
-  }
-
   try {
-    const { url } = await request.json();
+    const { url, apiKey } = await request.json();
+
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: 'AI service is not configured. Please provide a Gemini API Key.' },
+        { status: 400 }
+      );
+    }
+
     if (!url) {
       return NextResponse.json({ error: 'URL is required' }, { status: 400 });
     }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
 
     const response = await fetch(url, {
       headers: {
@@ -75,6 +75,9 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error('API Summarize Error:', error);
+    if (error.message?.includes('API key not valid')) {
+        return NextResponse.json({ error: 'The provided Gemini API Key is not valid. Please check your key and try again.' }, { status: 401 });
+    }
     return NextResponse.json({ error: error.message || 'An unexpected error occurred.' }, { status: 500 });
   }
 }

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -40,6 +41,7 @@ interface NewsletterFormProps {
 
 export function NewsletterForm({ onFormChange }: NewsletterFormProps) {
   const [summarizingIndex, setSummarizingIndex] = useState<number | null>(null);
+  const [apiKey, setApiKey] = useState("");
 
   const form = useForm<NewsletterFormData>({
     resolver: zodResolver(formSchema),
@@ -77,6 +79,11 @@ export function NewsletterForm({ onFormChange }: NewsletterFormProps) {
       return;
     }
 
+    if (!apiKey) {
+      toast.error("Please enter your Google Gemini API Key before summarizing.");
+      return;
+    }
+
     setSummarizingIndex(index);
     const toastId = toast.loading(`Fetching content from article ${index + 1}...`);
 
@@ -84,7 +91,7 @@ export function NewsletterForm({ onFormChange }: NewsletterFormProps) {
       const response = await fetch("/api/summarize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, apiKey }),
       });
 
       if (!response.ok) {
@@ -115,6 +122,21 @@ export function NewsletterForm({ onFormChange }: NewsletterFormProps) {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-4 p-4 border rounded-lg">
+          <FormItem>
+            <FormLabel>Google Gemini API Key</FormLabel>
+            <FormControl>
+              <Input
+                type="password"
+                placeholder="Enter your API Key"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+              />
+            </FormControl>
+            <FormDescription>
+              Your key is required for AI summarization and is not stored.
+            </FormDescription>
+          </FormItem>
+          <Separator />
            <FormField
             control={form.control}
             name="newsletterTitle"
