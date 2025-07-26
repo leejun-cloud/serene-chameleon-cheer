@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     }
 
     // 4. Generate Summary with Gemini
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const prompt = `Please provide a concise, engaging summary (about 3-4 sentences) of the following web page content. Focus on the key points and main ideas. The content is: "${mainContent.substring(0, 15000)}"`;
 
     const result = await model.generateContent(prompt);
