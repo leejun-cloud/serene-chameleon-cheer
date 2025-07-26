@@ -3,8 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
-import { PlusCircle, MinusCircle, Loader2 } from "lucide-react"; // Import icons
-
+import { PlusCircle, Trash2, Loader2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -17,35 +16,20 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dispatch, SetStateAction, useState } from "react";
-import { toast } from "sonner"; // Import toast for notifications
+import { toast } from "sonner";
+import { Separator } from "@/components/ui/separator";
+
+const articleSchema = z.object({
+  url: z.string().url("Please enter a valid URL."),
+  title: z.string().optional(),
+  summary: z.string().optional(),
+  imageUrl: z.string().optional(),
+});
 
 const formSchema = z.object({
-  title: z.string().min(2, {
-    message: "Title must be at least 2 characters.",
-  }).max(100, {
-    message: "Title must not exceed 100 characters.",
-  }),
-  subject: z.string().min(2, {
-    message: "Subject must be at least 2 characters.",
-  }).max(150, {
-    message: "Subject must not exceed 150 characters.",
-  }),
-  content: z.string().min(10, {
-    message: "Content must be at least 10 characters.",
-  }).max(5000, {
-    message: "Content must not exceed 5000 characters.",
-  }),
-  ctaText: z.string().min(1, {
-    message: "CTA text is required.",
-  }).max(50, {
-    message: "CTA text must not exceed 50 characters.",
-  }),
-  ctaLink: z.string().url({
-    message: "Must be a valid URL.",
-  }),
-  emails: z.array(z.string().email("Invalid email address.")).optional(), // Array of emails
-  imageUrl: z.string().url("Invalid URL.").or(z.literal("")).optional(), // Optional image URL
-  summarizeUrl: z.string().url("Invalid URL.").or(z.literal("")).optional(), // Optional URL for summarization
+  newsletterTitle: z.string().min(2, "Title is too short.").max(100),
+  newsletterSubject: z.string().min(2, "Subject is too short.").max(150),
+  articles: z.array(articleSchema).min(1, "Please add at least one article."),
 });
 
 export type NewsletterFormData = z.infer<typeof formSchema>;
@@ -55,49 +39,41 @@ interface NewsletterFormProps {
 }
 
 export function NewsletterForm({ onFormChange }: NewsletterFormProps) {
-  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [summarizingIndex, setSummarizingIndex] = useState<number | null>(null);
 
   const form = useForm<NewsletterFormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      title: "",
-      subject: "",
-      content: "",
-      ctaText: "Read More",
-      ctaLink: "https://www.example.com",
-      emails: [""], // Start with one empty email field
-      imageUrl: "",
-      summarizeUrl: "",
+      newsletterTitle: "Weekly Digest",
+      newsletterSubject: "Your weekly news update!",
+      articles: [{ url: "", title: "", summary: "", imageUrl: "" }],
     },
   });
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
-    name: "emails",
+    name: "articles",
   });
 
-  // Watch for changes and update parent state
   form.watch((data) => {
     onFormChange(data as NewsletterFormData);
   });
 
-  async function handleSummarize() {
-    const urlToSummarize = form.getValues("summarizeUrl");
-    if (!urlToSummarize) {
-      toast.error("Please enter a URL to summarize.");
+  async function handleSummarize(index: number) {
+    const url = form.getValues(`articles.${index}.url`);
+    if (!url) {
+      toast.error("Please enter a URL for the article first.");
       return;
     }
 
-    setIsSummarizing(true);
-    toast.loading("Summarizing content...");
+    setSummarizingIndex(index);
+    const toastId = toast.loading(`Fetching content from article ${index + 1}...`);
 
     try {
       const response = await fetch("/api/summarize", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ url: urlToSummarize }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
       });
 
       if (!response.ok) {
@@ -106,184 +82,147 @@ export function NewsletterForm({ onFormChange }: NewsletterFormProps) {
       }
 
       const data = await response.json();
-      form.setValue("content", data.summary, { shouldValidate: true });
-      toast.success("Content summarized successfully!");
+      form.setValue(`articles.${index}.title`, data.title, { shouldValidate: true });
+      form.setValue(`articles.${index}.summary`, data.summary, { shouldValidate: true });
+      form.setValue(`articles.${index}.imageUrl`, data.imageUrl, { shouldValidate: true });
+      
+      toast.success(`Article ${index + 1} summarized successfully!`, { id: toastId });
     } catch (error: any) {
       console.error("Summarization error:", error);
-      toast.error(error.message || "An unexpected error occurred during summarization.");
+      toast.error(error.message || "An unexpected error occurred.", { id: toastId });
     } finally {
-      setIsSummarizing(false);
+      setSummarizingIndex(null);
     }
   }
 
   function onSubmit(values: NewsletterFormData) {
-    // In a real app, you might send this data to a backend
     console.log(values);
-    toast.success("Newsletter data submitted (console logged).");
+    toast.success("Newsletter ready! (Data logged to console)");
   }
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Newsletter Title</FormLabel>
-              <FormControl>
-                <Input placeholder="Weekly Update" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="subject"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email Subject Line</FormLabel>
-              <FormControl>
-                <Input placeholder="Exciting News Inside!" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        {/* AI Summarization Section */}
-        <div className="space-y-2 border p-4 rounded-md">
-          <h3 className="text-lg font-semibold">AI Content Summarization</h3>
-          <FormField
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <div className="space-y-4 p-4 border rounded-lg">
+           <FormField
             control={form.control}
-            name="summarizeUrl"
+            name="newsletterTitle"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>URL to Summarize</FormLabel>
+                <FormLabel>Newsletter Title</FormLabel>
                 <FormControl>
-                  <Input type="url" placeholder="https://example.com/article" {...field} />
+                  <Input placeholder="e.g., Weekly Tech Digest" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-          <Button 
-            type="button" 
-            onClick={handleSummarize} 
-            disabled={isSummarizing || !form.getValues("summarizeUrl")}
-            className="w-full"
-          >
-            {isSummarizing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Summarizing...
-              </>
-            ) : (
-              "Summarize Content"
+          <FormField
+            control={form.control}
+            name="newsletterSubject"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email Subject Line</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g., Your Weekly Update is Here!" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
             )}
-          </Button>
-          <p className="text-sm text-muted-foreground mt-2">
-            Enter a URL and click "Summarize Content" to automatically fill the content field.
-            (Requires backend setup for AI integration)
-          </p>
+          />
         </div>
 
-        <FormField
-          control={form.control}
-          name="content"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Content</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Write your newsletter content here..."
-                  className="min-h-[150px]"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="imageUrl"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Representative Image URL</FormLabel>
-              <FormControl>
-                <Input type="url" placeholder="https://example.com/image.jpg" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="ctaText"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Call to Action Text</FormLabel>
-              <FormControl>
-                <Input placeholder="Click Here" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="ctaLink"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Call to Action Link</FormLabel>
-              <FormControl>
-                <Input type="url" placeholder="https://yourwebsite.com" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Dynamic Email Inputs */}
         <div>
-          <FormLabel>Recipient Emails</FormLabel>
-          {fields.map((item, index) => (
-            <FormField
-              control={form.control}
-              key={item.id}
-              name={`emails.${index}`}
-              render={({ field }) => (
-                <FormItem className="flex items-center space-x-2 mb-2">
-                  <FormControl>
-                    <Input type="email" placeholder="email@example.com" {...field} />
-                  </FormControl>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => remove(index)}
-                    disabled={fields.length === 1} // Disable remove if only one field
-                  >
-                    <MinusCircle className="h-4 w-4" />
-                  </Button>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          ))}
+          <h3 className="text-lg font-semibold mb-2">Articles</h3>
+          <div className="space-y-6">
+            {fields.map((item, index) => (
+              <div key={item.id} className="p-4 border rounded-lg space-y-4 relative">
+                <FormLabel className="font-semibold">Article {index + 1}</FormLabel>
+                <FormField
+                  control={form.control}
+                  name={`articles.${index}.url`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>URL</FormLabel>
+                      <FormControl>
+                        <Input type="url" placeholder="https://example.com/article" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button
+                  type="button"
+                  onClick={() => handleSummarize(index)}
+                  disabled={summarizingIndex !== null}
+                  className="w-full"
+                >
+                  {summarizingIndex === index ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Wand2 className="mr-2 h-4 w-4" />
+                  )}
+                  Fetch & Summarize Article
+                </Button>
+                <FormField
+                  control={form.control}
+                  name={`articles.${index}.title`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Title</FormLabel>
+                      <FormControl><Input placeholder="Article title appears here" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`articles.${index}.summary`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Summary</FormLabel>
+                      <FormControl><Textarea placeholder="Article summary appears here" className="min-h-[100px]" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`articles.${index}.imageUrl`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Image URL</FormLabel>
+                      <FormControl><Input placeholder="Image URL appears here" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  onClick={() => remove(index)}
+                  className="absolute top-2 right-2"
+                  disabled={fields.length === 1}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
           <Button
             type="button"
             variant="outline"
-            onClick={() => append("")}
-            className="w-full mt-2"
+            onClick={() => append({ url: "", title: "", summary: "", imageUrl: "" })}
+            className="w-full mt-4"
           >
-            <PlusCircle className="mr-2 h-4 w-4" /> Add Email
+            <PlusCircle className="mr-2 h-4 w-4" /> Add Another Article
           </Button>
         </div>
+        
+        <Separator />
 
-        <Button type="submit" className="w-full">Generate Newsletter</Button>
+        <Button type="submit" className="w-full text-lg py-6">Generate Newsletter</Button>
       </form>
     </Form>
   );
