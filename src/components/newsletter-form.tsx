@@ -55,14 +55,13 @@ export function NewsletterForm({ onFormChange }: NewsletterFormProps) {
     name: "articles",
   });
 
-  // Subscribe to form changes and update the parent component
-  const { watch } = form;
+  // Watch for all form changes
+  const watchedValues = form.watch();
+
+  // A more robust effect to update the parent component (and thus the preview)
   useEffect(() => {
-    const subscription = watch((value) => {
-      onFormChange(value as NewsletterFormData);
-    });
-    return () => subscription.unsubscribe();
-  }, [watch, onFormChange]);
+    onFormChange(watchedValues);
+  }, [watchedValues, onFormChange]);
 
 
   async function handleSummarize(index: number) {
@@ -89,7 +88,7 @@ export function NewsletterForm({ onFormChange }: NewsletterFormProps) {
 
       const data = await response.json();
       form.setValue(`articles.${index}.title`, data.title, { shouldValidate: true });
-      form.setValue(`articles.${index}.summary`, data.summary, { shouldValidate: true });
+      form.setValue(`articles.${index}.summary`, data.summary, { shouldValidate:true });
       form.setValue(`articles.${index}.imageUrl`, data.imageUrl, { shouldValidate: true });
       
       toast.success(`Article ${index + 1} summarized successfully!`, { id: toastId });
