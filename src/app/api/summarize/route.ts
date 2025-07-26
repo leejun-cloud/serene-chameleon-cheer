@@ -30,13 +30,10 @@ export async function POST(request: Request) {
     const html = await response.text();
     const $ = cheerio.load(html);
 
-    // 1. Extract Title
     const title = $('head > title').text() || $('h1').first().text();
 
-    // 2. Extract Representative Image (og:image is best)
     let imageUrl = $('meta[property="og:image"]').attr('content');
     if (!imageUrl) {
-      // Fallback to the first large image
       $('img').each((i, elem) => {
         const src = $(elem).attr('src');
         if (src) {
@@ -44,18 +41,15 @@ export async function POST(request: Request) {
           const height = Number($(elem).attr('height')) || 0;
           if (width > 200 || height > 200) {
             imageUrl = src;
-            return false; // stop iterating
+            return false;
           }
         }
       });
     }
-    // Ensure the URL is absolute
     if (imageUrl && !imageUrl.startsWith('http')) {
       imageUrl = new URL(imageUrl, url).href;
     }
 
-
-    // 3. Improved content extraction
     $('script, style, nav, footer, header, aside, form').remove();
     
     let mainContent;
@@ -72,29 +66,49 @@ export async function POST(request: Request) {
     
     const cleanedContent = mainContent.replace(/\s\s+/g, ' ').trim();
 
-    if (!cleanedContent) {
-      throw new Error('Could not extract meaningful content from the URL.');
+    if (cleanedContent.length < 150) {
+      throw new Error('Could not extract enough meaningful content from the URL to summarize.');
     }
 
-    // 4. More robust prompt for Gemini
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const prompt = `You are a text summarization expert. Your task is to create a concise summary of the provided text.
-Follow these rules strictly:
-1. The summary must be 3-4 sentences long.
-2. The summary MUST be in the exact same language as the original text provided.
-3. Your response must contain ONLY the summary text, with no additional explanations, greetings, or introductory phrases like "Here is the summary:".
+    // Use JSON mode for reliable, structured output
+    const model = genAI.getGenerativeModel({ 
+      model: 'gemini-1.5-flash',
+      generationConfig: {
+        responseMimeType: "application/json",
+      }
+    });
 
-Original Text:
----
-${cleanedContent.substring(0, 10000)}
----
-`;
+    const prompt = `
+      You are an expert content summarizer. Analyze the following text and provide a summary.
+      The summary must be 3-4 sentences long and in the same language as the original text.
+      
+      Your output must conform to this JSON schema:
+      {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "type": "string",
+            "description": "The 3-4 sentence summary of the text."
+          }
+        }
+      }
+
+      Original Text to Summarize:
+      ---
+      ${cleanedContent.substring(0, 8000)}
+      ---
+    `;
 
     const result = await model.generateContent(prompt);
-    const summaryResponse = await result.response;
-    const summary = summaryResponse.text();
+    const aiResponse = await result.response;
+    const parsedJson = JSON.parse(aiResponse.text());
 
-    return NextResponse.json({ title, summary, imageUrl: imageUrl || '' });
+    if (!parsedJson.summary) {
+      console.error("AI returned valid JSON but without a summary key. Response:", aiResponse.text());
+      throw new Error("AI response was missing the summary. Please try again.");
+    }
+
+    return NextResponse.json({ title, summary: parsedJson.summary, imageUrl: imageUrl || '' });
 
   } catch (error: any) {
     console.error('API Summarize Error:', error);
