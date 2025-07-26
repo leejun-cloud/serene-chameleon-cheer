@@ -52,6 +52,24 @@ export function NewsletterForm({ onFormChange }: NewsletterFormProps) {
     },
   });
 
+  // Load API key from local storage on initial render
+  useEffect(() => {
+    const storedApiKey = localStorage.getItem("geminiApiKey");
+    if (storedApiKey) {
+      setApiKey(storedApiKey);
+    }
+  }, []); // Empty dependency array ensures this runs only once on mount
+
+  // Save API key to local storage whenever it changes
+  useEffect(() => {
+    if (apiKey) {
+      localStorage.setItem("geminiApiKey", apiKey);
+    } else {
+      // If user clears the input, remove it from storage
+      localStorage.removeItem("geminiApiKey");
+    }
+  }, [apiKey]);
+
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "articles",
@@ -133,7 +151,7 @@ export function NewsletterForm({ onFormChange }: NewsletterFormProps) {
               />
             </FormControl>
             <FormDescription>
-              Your key is required for AI summarization and is not stored.
+              Your key is stored in your browser for convenience and is not sent to our servers.
             </FormDescription>
           </FormItem>
           <Separator />
