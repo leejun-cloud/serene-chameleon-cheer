@@ -3,12 +3,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
-import { PlusCircle, Trash2, Loader2, Wand2 } from "lucide-react";
+import { PlusCircle, Trash2, Loader2, Wand2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -19,6 +18,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dispatch, SetStateAction, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
+import { saveNewsletter, SavedNewsletter } from "@/lib/storage";
+import { useRouter } from "next/navigation";
 
 const articleSchema = z.object({
   url: z.string().url("Please enter a valid URL."),
@@ -37,10 +38,13 @@ export type NewsletterFormData = z.infer<typeof formSchema>;
 
 interface NewsletterFormProps {
   onFormChange: Dispatch<SetStateAction<NewsletterFormData | null>>;
+  initialData?: SavedNewsletter | null;
+  newsletterId?: string | null;
 }
 
-export function NewsletterForm({ onFormChange }: NewsletterFormProps) {
+export function NewsletterForm({ onFormChange, initialData, newsletterId }: NewsletterFormProps) {
   const [summarizingIndex, setSummarizingIndex] = useState<number | null>(null);
+  const router = useRouter();
 
   const form = useForm<NewsletterFormData>({
     resolver: zodResolver(formSchema),
@@ -51,6 +55,12 @@ export function NewsletterForm({ onFormChange }: NewsletterFormProps) {
     },
   });
 
+  useEffect(() => {
+    if (initialData) {
+      form.reset(initialData);
+    }
+  }, [initialData, form]);
+
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "articles",
@@ -58,7 +68,6 @@ export function NewsletterForm({ onFormChange }: NewsletterFormProps) {
 
   const { watch } = form;
   useEffect(() => {
-    onFormChange(form.getValues());
     const subscription = watch((value) => {
       onFormChange(value as NewsletterFormData);
     });
@@ -103,8 +112,15 @@ export function NewsletterForm({ onFormChange }: NewsletterFormProps) {
   }
 
   function onSubmit(values: NewsletterFormData) {
-    console.log(values);
-    toast.success("Newsletter saved! (Data logged to console for now)");
+    try {
+      saveNewsletter(values, newsletterId || undefined);
+      toast.success(`Newsletter ${newsletterId ? 'updated' : 'saved'} successfully!`);
+      router.push('/');
+      router.refresh(); // To ensure the homepage list is updated
+    } catch (error) {
+      toast.error("Failed to save newsletter.");
+      console.error(error);
+    }
   }
 
   return (
@@ -229,7 +245,10 @@ export function NewsletterForm({ onFormChange }: NewsletterFormProps) {
         
         <Separator />
 
-        <Button type="submit" className="w-full text-lg py-6">Save Newsletter</Button>
+        <Button type="submit" className="w-full text-lg py-6">
+          <Save className="mr-2 h-5 w-5" />
+          {newsletterId ? 'Update Newsletter' : 'Save Newsletter'}
+        </Button>
       </form>
     </Form>
   );

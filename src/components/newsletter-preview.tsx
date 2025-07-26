@@ -20,9 +20,10 @@ interface AiStyles {
 
 interface NewsletterPreviewProps {
   data: NewsletterFormData | null;
+  isReadOnly?: boolean;
 }
 
-export function NewsletterPreview({ data }: NewsletterPreviewProps) {
+export function NewsletterPreview({ data, isReadOnly = false }: NewsletterPreviewProps) {
   const [designPrompt, setDesignPrompt] = useState('');
   const [isRedesigning, setIsRedesigning] = useState(false);
   const [aiStyles, setAiStyles] = useState<AiStyles>({});
@@ -184,38 +185,40 @@ export function NewsletterPreview({ data }: NewsletterPreviewProps) {
           <p>&copy; {new Date().getFullYear()} Your Company. All rights reserved.</p>
         </div>
       </CardContent>
-      <CardFooter className={cn("flex flex-col items-start gap-4 p-6 border-t", aiStyles.footer)}>
-        <div className="w-full">
-          <Label htmlFor="design-prompt" className="text-sm font-semibold flex items-center">
-            <Wand2 className="mr-2 h-4 w-4" />
-            Request AI Design Changes
-          </Label>
-          <Textarea 
-            id="design-prompt"
-            placeholder="e.g., 'Make it sky blue', 'Use a dark theme', 'Change the font to serif'..."
-            className="mt-2"
-            value={designPrompt}
-            onChange={(e) => setDesignPrompt(e.target.value)}
-          />
-        </div>
-        <Button onClick={handleRedesign} className="w-full" disabled={isRedesigning}>
-          {isRedesigning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-          Redesign with AI
-        </Button>
-        
-        <Separator className="my-4 w-full" />
-
-        <div className="w-full">
-          <Label className="text-sm font-semibold flex items-center">
-            <Download className="mr-2 h-4 w-4" />
-            Export Newsletter
-          </Label>
-          <p className="text-xs text-muted-foreground mt-1 mb-2">Download the final newsletter as a single HTML file.</p>
-          <Button onClick={handleDownloadHtml} className="w-full" variant="secondary">
-            Download HTML
+      {!isReadOnly && (
+        <CardFooter className={cn("flex flex-col items-start gap-4 p-6 border-t", aiStyles.footer)}>
+          <div className="w-full">
+            <Label htmlFor="design-prompt" className="text-sm font-semibold flex items-center">
+              <Wand2 className="mr-2 h-4 w-4" />
+              Request AI Design Changes
+            </Label>
+            <Textarea 
+              id="design-prompt"
+              placeholder="e.g., 'Make it sky blue', 'Use a dark theme', 'Change the font to serif'..."
+              className="mt-2"
+              value={designPrompt}
+              onChange={(e) => setDesignPrompt(e.target.value)}
+            />
+          </div>
+          <Button onClick={handleRedesign} className="w-full" disabled={isRedesigning}>
+            {isRedesigning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Redesign with AI
           </Button>
-        </div>
-      </CardFooter>
+          
+          <Separator className="my-4 w-full" />
+
+          <div className="w-full">
+            <Label className="text-sm font-semibold flex items-center">
+              <Download className="mr-2 h-4 w-4" />
+              Export Newsletter
+            </Label>
+            <p className="text-xs text-muted-foreground mt-1 mb-2">Download the final newsletter as a single HTML file.</p>
+            <Button onClick={handleDownloadHtml} className="w-full" variant="secondary">
+              Download HTML
+            </Button>
+          </div>
+        </CardFooter>
+      )}
     </Card>
   );
 }
