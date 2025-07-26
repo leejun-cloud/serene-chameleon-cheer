@@ -40,7 +40,6 @@ export async function POST(request: Request) {
       $('img').each((i, elem) => {
         const src = $(elem).attr('src');
         if (src) {
-          // A simple check for a reasonably sized image
           const width = Number($(elem).attr('width')) || 0;
           const height = Number($(elem).attr('height')) || 0;
           if (width > 200 || height > 200) {
@@ -56,16 +55,40 @@ export async function POST(request: Request) {
     }
 
 
-    // 3. Extract and clean content for summary
+    // 3. Improved content extraction
     $('script, style, nav, footer, header, aside, form').remove();
-    const mainContent = $('body').text().replace(/\s\s+/g, ' ').trim();
+    
+    let mainContent;
+    const mainSelectors = ['main', 'article', 'div[role="main"]', 'div#main', 'div#content', '.post-content'];
+    for (const selector of mainSelectors) {
+        if ($(selector).length) {
+            mainContent = $(selector).text();
+            break;
+        }
+    }
     if (!mainContent) {
+        mainContent = $('body').text();
+    }
+    
+    const cleanedContent = mainContent.replace(/\s\s+/g, ' ').trim();
+
+    if (!cleanedContent) {
       throw new Error('Could not extract meaningful content from the URL.');
     }
 
-    // 4. Generate Summary with Gemini
+    // 4. More robust prompt for Gemini
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const prompt = `Please provide a concise, engaging summary (about 3-4 sentences) of the following web page content. The summary MUST be in the same language as the original text. Focus on the key points and main ideas. The content is: "${mainContent.substring(0, 15000)}"`;
+    const prompt = `You are a text summarization expert. Your task is to create a concise summary of the provided text.
+Follow these rules strictly:
+1. The summary must be 3-4 sentences long.
+2. The summary MUST be in the exact same language as the original text provided.
+3. Your response must contain ONLY the summary text, with no additional explanations, greetings, or introductory phrases like "Here is the summary:".
+
+Original Text:
+---
+${cleanedContent.substring(0, 10000)}
+---
+`;
 
     const result = await model.generateContent(prompt);
     const summaryResponse = await result.response;
