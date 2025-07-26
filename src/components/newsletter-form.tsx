@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dispatch, SetStateAction, useState } from "react";
+import { Dispatch, SetStateAction, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 
@@ -55,9 +55,15 @@ export function NewsletterForm({ onFormChange }: NewsletterFormProps) {
     name: "articles",
   });
 
-  form.watch((data) => {
-    onFormChange(data as NewsletterFormData);
-  });
+  // Subscribe to form changes and update the parent component
+  const { watch } = form;
+  useEffect(() => {
+    const subscription = watch((value) => {
+      onFormChange(value as NewsletterFormData);
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, onFormChange]);
+
 
   async function handleSummarize(index: number) {
     const url = form.getValues(`articles.${index}.url`);
