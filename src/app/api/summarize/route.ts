@@ -2,6 +2,27 @@ import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as cheerio from 'cheerio';
 
+// Helper function to extract JSON from a string that might contain markdown
+function extractJson(str: string): any | null {
+  const match = str.match(/```json\n([\s\S]*?)\n```/);
+  if (match && match[1]) {
+    try {
+      return JSON.parse(match[1]);
+    } catch (e) {
+      console.error("Failed to parse extracted JSON:", e);
+      return null;
+    }
+  }
+  // Fallback for string that is just the JSON object
+  try {
+    return JSON.parse(str);
+  } catch(e) {
+    console.error("Failed to parse raw string as JSON:", e);
+  }
+  return null;
+}
+
+
 export async function POST(request: Request) {
   try {
     const { url, apiKey } = await request.json();
@@ -17,93 +38,67 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'URL is required' }, { status: 400 });
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-
+    // Step 1: Fetch the raw HTML content of the page
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'text/html',
       }
     });
     if (!response.ok) {
       throw new Error(`Failed to fetch content from ${url}. Status: ${response.status}`);
     }
+    
     const html = await response.text();
     const $ = cheerio.load(html);
 
-    // 1. Extract Title
-    const title = $('head > title').text() || $('h1').first().text();
+    // Clean up the HTML to reduce token count before sending to AI
+    $('script, style, noscript, iframe, footer, nav, aside, header').remove();
+    const bodyContent = $('body').text() || '';
 
-    // 2. Extract Representative Image (og:image is best)
-    let imageUrl = $('meta[property="og:image"]').attr('content');
-    if (!imageUrl) {
-      $('img').each((i, elem) => {
-        const src = $(elem).attr('src');
-        if (src) {
-          const width = Number($(elem).attr('width')) || 0;
-          const height = Number($(elem).attr('height')) || 0;
-          if (width > 200 || height > 200) {
-            imageUrl = src;
-            return false; 
-          }
-        }
-      });
-    }
-    if (imageUrl && !imageUrl.startsWith('http')) {
-      imageUrl = new URL(imageUrl, url).href;
+    if (!bodyContent.trim()) {
+        throw new Error('Could not extract any meaningful text content from the page body.');
     }
 
-    // 3. Heavily improved content extraction
-    $('script, style, nav, footer, header, aside, form, noscript, iframe').remove();
-    
-    let mainContent = '';
-    const mainSelectors = ['main', 'article', 'div[role="main"]', 'div#main', 'div#content', '.post-content', '.article-body'];
-    for (const selector of mainSelectors) {
-        if ($(selector).length) {
-            mainContent = $(selector).text();
-            break;
-        }
-    }
-
-    if (!mainContent) {
-        const paragraphs: string[] = [];
-        $('body p').each((i, elem) => {
-            const pText = $(elem).text().trim();
-            if (pText.length > 80) { // Heuristic to find meaningful paragraphs
-                paragraphs.push(pText);
-            }
-        });
-        if (paragraphs.length > 0) {
-            mainContent = paragraphs.join('\n\n');
-        } else {
-            mainContent = $('body').text(); // Last resort
-        }
-    }
-    
-    const cleanedContent = mainContent.replace(/\s\s+/g, ' ').trim();
-
-    if (!cleanedContent || cleanedContent.length < 150) { // Stricter length check
-      throw new Error('Could not extract meaningful content from the URL. The page might be rendered with JavaScript or has very little text.');
-    }
-
-    // 4. More robust prompt for Gemini
+    // Step 2: Ask Gemini to extract, summarize, and return JSON
+    const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const prompt = `You are a text summarization expert. Your task is to create a concise summary of the provided text.
-Follow these rules strictly:
-1. The summary must be 3-4 sentences long.
-2. The summary MUST be in the exact same language as the original text provided.
-3. Your response must contain ONLY the summary text, with no additional explanations, greetings, or introductory phrases like "Here is the summary:".
 
-Original Text:
----
-${cleanedContent.substring(0, 10000)}
----
-`;
+    const prompt = `
+      You are an expert web content processor. From the provided web page text content, perform the following tasks:
+      1.  Extract the main article title.
+      2.  Generate a concise, 3-4 sentence summary of the main article content.
+      3.  The summary MUST be in the same language as the article.
+
+      Your response MUST be a single, clean JSON object and nothing else. Do not wrap it in markdown or add any explanations.
+      The JSON object must have this exact structure: { "title": "...", "summary": "..." }
+
+      Web page text content to process:
+      ---
+      ${bodyContent.substring(0, 20000)}
+      ---
+    `;
 
     const result = await model.generateContent(prompt);
-    const summaryResponse = await result.response;
-    const summary = summaryResponse.text();
+    const aiResponseText = result.response.text();
+    const jsonData = extractJson(aiResponseText);
 
-    return NextResponse.json({ title, summary, imageUrl: imageUrl || '' });
+    if (!jsonData || !jsonData.title || !jsonData.summary) {
+        console.error("AI response was not valid JSON:", aiResponseText);
+        throw new Error("AI failed to process the article. The website's structure might be too complex or the content is not suitable for summarization.");
+    }
+    
+    // Find image URL separately using cheerio as a reliable fallback
+    let imageUrl = $('meta[property="og:image"]').attr('content');
+    if (imageUrl && !imageUrl.startsWith('http')) {
+        imageUrl = new URL(imageUrl, url).href;
+    }
+
+    return NextResponse.json({
+        title: jsonData.title,
+        summary: jsonData.summary,
+        imageUrl: imageUrl || ''
+    });
 
   } catch (error: any) {
     console.error('API Summarize Error:', error);
