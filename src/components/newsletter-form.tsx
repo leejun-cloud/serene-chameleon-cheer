@@ -133,7 +133,7 @@ export function NewsletterForm({ onFormChange }: NewsletterFormProps) {
 
   function onSubmit(values: NewsletterFormData) {
     console.log(values);
-    toast.success("Newsletter ready! (Data logged to console)");
+    toast.success("Newsletter saved! (Data logged to console for now)");
   }
 
   return (
@@ -273,7 +273,7 @@ export function NewsletterForm({ onFormChange }: NewsletterFormProps) {
         
         <Separator />
 
-        <Button type="submit" className="w-full text-lg py-6">Generate Newsletter</Button>
+        <Button type="submit" className="w-full text-lg py-6">Save Newsletter</Button>
       </form>
     </Form>
   );
