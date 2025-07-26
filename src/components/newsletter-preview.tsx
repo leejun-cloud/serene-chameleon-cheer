@@ -20,19 +20,14 @@ interface AiStyles {
 
 interface NewsletterPreviewProps {
   data: NewsletterFormData | null;
-  apiKey: string;
 }
 
-export function NewsletterPreview({ data, apiKey }: NewsletterPreviewProps) {
+export function NewsletterPreview({ data }: NewsletterPreviewProps) {
   const [designPrompt, setDesignPrompt] = useState('');
   const [isRedesigning, setIsRedesigning] = useState(false);
   const [aiStyles, setAiStyles] = useState<AiStyles>({});
 
   async function handleRedesign() {
-    if (!apiKey) {
-      toast.error("Please enter your Google Gemini API Key first.");
-      return;
-    }
     if (!designPrompt) {
       toast.error("Please enter a design request before redesigning.");
       return;
@@ -45,7 +40,7 @@ export function NewsletterPreview({ data, apiKey }: NewsletterPreviewProps) {
       const response = await fetch('/api/redesign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ designPrompt, apiKey }),
+        body: JSON.stringify({ designPrompt }),
       });
 
       if (!response.ok) {

@@ -1,20 +1,21 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+const GEMINI_API_KEY = "AIzaSyAYUmo4CviAuC6POOQcCI2KkeNmZYLHmPA";
+
 export async function POST(request: Request) {
   try {
-    const { designPrompt, apiKey } = await request.json();
+    const { designPrompt } = await request.json();
 
-    if (!apiKey) {
-      return NextResponse.json({ error: 'API Key is required for AI services.' }, { status: 400 });
+    if (!GEMINI_API_KEY) {
+      return NextResponse.json({ error: 'AI service is not configured on the server.' }, { status: 500 });
     }
     if (!designPrompt) {
       return NextResponse.json({ error: 'Design prompt is required.' }, { status: 400 });
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
     
-    // Use JSON mode for reliable, structured output
     const model = genAI.getGenerativeModel({ 
       model: 'gemini-1.5-flash',
       generationConfig: {

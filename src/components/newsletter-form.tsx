@@ -37,11 +37,9 @@ export type NewsletterFormData = z.infer<typeof formSchema>;
 
 interface NewsletterFormProps {
   onFormChange: Dispatch<SetStateAction<NewsletterFormData | null>>;
-  apiKey: string;
-  setApiKey: Dispatch<SetStateAction<string>>;
 }
 
-export function NewsletterForm({ onFormChange, apiKey, setApiKey }: NewsletterFormProps) {
+export function NewsletterForm({ onFormChange }: NewsletterFormProps) {
   const [summarizingIndex, setSummarizingIndex] = useState<number | null>(null);
 
   const form = useForm<NewsletterFormData>({
@@ -75,11 +73,6 @@ export function NewsletterForm({ onFormChange, apiKey, setApiKey }: NewsletterFo
       return;
     }
 
-    if (!apiKey) {
-      toast.error("Please enter your Google Gemini API Key before summarizing.");
-      return;
-    }
-
     setSummarizingIndex(index);
     const toastId = toast.loading(`Fetching content from article ${index + 1}...`);
 
@@ -87,7 +80,7 @@ export function NewsletterForm({ onFormChange, apiKey, setApiKey }: NewsletterFo
       const response = await fetch("/api/summarize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, apiKey }),
+        body: JSON.stringify({ url }),
       });
 
       if (!response.ok) {
@@ -118,21 +111,6 @@ export function NewsletterForm({ onFormChange, apiKey, setApiKey }: NewsletterFo
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-4 p-4 border rounded-lg">
-          <FormItem>
-            <FormLabel>Google Gemini API Key</FormLabel>
-            <FormControl>
-              <Input
-                type="password"
-                placeholder="Enter your API Key"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-              />
-            </FormControl>
-            <FormDescription>
-              Your key is stored in your browser for convenience.
-            </FormDescription>
-          </FormItem>
-          <Separator />
            <FormField
             control={form.control}
             name="newsletterTitle"

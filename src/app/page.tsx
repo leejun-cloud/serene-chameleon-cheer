@@ -6,24 +6,6 @@ import { NewsletterPreview } from '@/components/newsletter-preview';
 
 export default function Home() {
   const [formData, setFormData] = useState<NewsletterFormData | null>(null);
-  const [apiKey, setApiKey] = useState("");
-
-  // Load API key from local storage on initial render
-  useEffect(() => {
-    const storedApiKey = localStorage.getItem("geminiApiKey");
-    if (storedApiKey) {
-      setApiKey(storedApiKey);
-    }
-  }, []);
-
-  // Save API key to local storage whenever it changes
-  useEffect(() => {
-    if (apiKey) {
-      localStorage.setItem("geminiApiKey", apiKey);
-    } else {
-      localStorage.removeItem("geminiApiKey");
-    }
-  }, [apiKey]);
 
   return (
     <main className="container mx-auto p-4 md:p-8">
@@ -37,11 +19,9 @@ export default function Home() {
         <div className="lg:sticky top-8">
           <NewsletterForm 
             onFormChange={setFormData} 
-            apiKey={apiKey}
-            setApiKey={setApiKey}
           />
         </div>
-        <NewsletterPreview data={formData} apiKey={apiKey} />
+        <NewsletterPreview data={formData} />
       </div>
     </main>
   );

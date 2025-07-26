@@ -2,14 +2,16 @@ import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as cheerio from 'cheerio';
 
+const GEMINI_API_KEY = "AIzaSyAYUmo4CviAuC6POOQcCI2KkeNmZYLHmPA";
+
 export async function POST(request: Request) {
   try {
-    const { url, apiKey } = await request.json();
+    const { url } = await request.json();
 
-    if (!apiKey) {
+    if (!GEMINI_API_KEY) {
       return NextResponse.json(
-        { error: 'AI service is not configured. Please provide a Gemini API Key.' },
-        { status: 400 }
+        { error: 'AI service is not configured on the server.' },
+        { status: 500 }
       );
     }
 
@@ -17,7 +19,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'URL is required' }, { status: 400 });
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
     const response = await fetch(url, {
       headers: {
@@ -70,7 +72,6 @@ export async function POST(request: Request) {
       throw new Error('Could not extract enough meaningful content from the URL to summarize.');
     }
 
-    // Use JSON mode for reliable, structured output
     const model = genAI.getGenerativeModel({ 
       model: 'gemini-1.5-flash',
       generationConfig: {
