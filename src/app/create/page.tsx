@@ -7,6 +7,9 @@ import { NewsletterForm, NewsletterFormData } from "@/components/newsletter-form
 import { NewsletterPreview } from "@/components/newsletter-preview";
 import { getNewsletterById, SavedNewsletter } from "@/lib/storage";
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Save } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
 function NewsletterCreator() {
   const searchParams = useSearchParams();
@@ -72,6 +75,13 @@ function NewsletterCreator() {
           <NewsletterPreview data={formData} />
         </div>
       </div>
+
+      <Separator className="my-8" />
+
+      <Button type="submit" form="newsletter-form" className="w-full text-lg py-6">
+        <Save className="mr-2 h-5 w-5" />
+        {newsletterId ? 'Update Newsletter' : 'Save Newsletter'}
+      </Button>
     </div>
   );
 }

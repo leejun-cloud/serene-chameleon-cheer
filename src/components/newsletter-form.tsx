@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
-import { PlusCircle, Trash2, Loader2, Wand2, Save } from "lucide-react";
+import { PlusCircle, Trash2, Loader2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -17,7 +17,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dispatch, SetStateAction, useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Separator } from "@/components/ui/separator";
 import { saveNewsletter, SavedNewsletter } from "@/lib/storage";
 import { useRouter } from "next/navigation";
 
@@ -125,7 +124,7 @@ export function NewsletterForm({ onFormChange, initialData, newsletterId }: News
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form id="newsletter-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-4 p-4 border rounded-lg">
            <FormField
             control={form.control}
@@ -242,13 +241,6 @@ export function NewsletterForm({ onFormChange, initialData, newsletterId }: News
             <PlusCircle className="mr-2 h-4 w-4" /> Add Another Article
           </Button>
         </div>
-        
-        <Separator />
-
-        <Button type="submit" className="w-full text-lg py-6">
-          <Save className="mr-2 h-5 w-5" />
-          {newsletterId ? 'Update Newsletter' : 'Save Newsletter'}
-        </Button>
       </form>
     </Form>
   );
