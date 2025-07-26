@@ -36,7 +36,6 @@ export async function POST(request: Request) {
     // 2. Extract Representative Image (og:image is best)
     let imageUrl = $('meta[property="og:image"]').attr('content');
     if (!imageUrl) {
-      // Fallback to the first large image
       $('img').each((i, elem) => {
         const src = $(elem).attr('src');
         if (src) {
@@ -44,36 +43,46 @@ export async function POST(request: Request) {
           const height = Number($(elem).attr('height')) || 0;
           if (width > 200 || height > 200) {
             imageUrl = src;
-            return false; // stop iterating
+            return false; 
           }
         }
       });
     }
-    // Ensure the URL is absolute
     if (imageUrl && !imageUrl.startsWith('http')) {
       imageUrl = new URL(imageUrl, url).href;
     }
 
-
-    // 3. Improved content extraction
-    $('script, style, nav, footer, header, aside, form').remove();
+    // 3. Heavily improved content extraction
+    $('script, style, nav, footer, header, aside, form, noscript, iframe').remove();
     
-    let mainContent;
-    const mainSelectors = ['main', 'article', 'div[role="main"]', 'div#main', 'div#content', '.post-content'];
+    let mainContent = '';
+    const mainSelectors = ['main', 'article', 'div[role="main"]', 'div#main', 'div#content', '.post-content', '.article-body'];
     for (const selector of mainSelectors) {
         if ($(selector).length) {
             mainContent = $(selector).text();
             break;
         }
     }
+
     if (!mainContent) {
-        mainContent = $('body').text();
+        const paragraphs: string[] = [];
+        $('body p').each((i, elem) => {
+            const pText = $(elem).text().trim();
+            if (pText.length > 80) { // Heuristic to find meaningful paragraphs
+                paragraphs.push(pText);
+            }
+        });
+        if (paragraphs.length > 0) {
+            mainContent = paragraphs.join('\n\n');
+        } else {
+            mainContent = $('body').text(); // Last resort
+        }
     }
     
     const cleanedContent = mainContent.replace(/\s\s+/g, ' ').trim();
 
-    if (!cleanedContent) {
-      throw new Error('Could not extract meaningful content from the URL.');
+    if (!cleanedContent || cleanedContent.length < 150) { // Stricter length check
+      throw new Error('Could not extract meaningful content from the URL. The page might be rendered with JavaScript or has very little text.');
     }
 
     // 4. More robust prompt for Gemini
