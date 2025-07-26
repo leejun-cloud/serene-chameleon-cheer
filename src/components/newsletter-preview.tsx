@@ -8,6 +8,7 @@ import { Textarea } from './ui/textarea';
 import { Wand2, Loader2, Download, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { marked } from 'marked';
 
 interface AiStyles {
   card?: string;
@@ -67,34 +68,40 @@ export function NewsletterPreview({ data, isReadOnly = false }: NewsletterPrevie
   ): string => {
     const articlesHtml = newsletterData.articles
       .map(
-        (article, index) => `
-      <div class="${cn('py-4', styles.articleContainer)}">
-        ${
-          article.imageUrl
-            ? `
-          <div style="position: relative; width: 100%; padding-bottom: 56.25%; overflow: hidden; border-radius: 0.5rem; margin-bottom: 1rem;">
-            <img
-              src="${article.imageUrl}"
-              alt="${article.title || 'Article Image'}"
-              style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;"
-            />
-          </div>`
-            : ''
+        (article, index) => {
+          const contentHtml = article.contentType === 'html'
+            ? (article.content || '')
+            : marked.parse(article.content || '');
+          
+          return `
+            <div class="${cn('py-4', styles.articleContainer)}">
+              ${
+                article.imageUrl
+                  ? `
+                <div style="position: relative; width: 100%; padding-bottom: 56.25%; overflow: hidden; border-radius: 0.5rem; margin-bottom: 1rem;">
+                  <img
+                    src="${article.imageUrl}"
+                    alt="${article.title || 'Article Image'}"
+                    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;"
+                  />
+                </div>`
+                  : ''
+              }
+              <h3 class="${cn('text-xl font-semibold mb-2', styles.articleTitle)}">${article.title || ''}</h3>
+              <div class="prose prose-sm max-w-none">
+                ${contentHtml}
+              </div>
+              ${article.url ? `
+              <div style="margin-top: 1rem;">
+                <a href="${article.url}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 0.5rem 1rem; border: 1px solid #e5e7eb; border-radius: 0.375rem; text-decoration: none; color: #374151; font-size: 0.875rem;">
+                  기사 보기
+                </a>
+              </div>
+              ` : ''}
+            </div>
+            ${index < newsletterData.articles.length - 1 ? '<hr class="my-6 border-gray-200" />' : ''}
+          `
         }
-        <h3 class="${cn('text-xl font-semibold mb-2', styles.articleTitle)}">${article.title || ''}</h3>
-        <div class="prose prose-sm max-w-none">
-          <p style="white-space: pre-wrap;">${article.summary || ''}</p>
-        </div>
-        ${article.url ? `
-        <div style="margin-top: 1rem;">
-          <a href="${article.url}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 0.5rem 1rem; border: 1px solid #e5e7eb; border-radius: 0.375rem; text-decoration: none; color: #374151; font-size: 0.875rem;">
-            기사 보기
-          </a>
-        </div>
-        ` : ''}
-      </div>
-      ${index < newsletterData.articles.length - 1 ? '<hr class="my-6 border-gray-200" />' : ''}
-    `
       )
       .join('');
 
@@ -102,15 +109,17 @@ export function NewsletterPreview({ data, isReadOnly = false }: NewsletterPrevie
       <!DOCTYPE html>
       <html lang="en">
       <head>
-        <meta charset="UTF-8">
+        <meta charset="UTF-T-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${newsletterData.newsletterTitle}</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <style>
           body { font-family: sans-serif; }
           .prose { color: #374151; line-height: 1.6; }
-          .prose h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
+          .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 { color: #111827; }
           .prose p { margin-top: 0; margin-bottom: 1rem; }
+          .prose a { color: #2563eb; }
+          .prose img { border-radius: 0.5rem; }
         </style>
       </head>
       <body class="bg-gray-100 p-4 md:p-8">
@@ -140,7 +149,7 @@ export function NewsletterPreview({ data, isReadOnly = false }: NewsletterPrevie
     const blob = new Blob([htmlContent], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-a.href = url;
+    a.href = url;
     a.download = `${data.newsletterTitle.replace(/\s+/g, '_').toLowerCase()}_newsletter.html`;
     document.body.appendChild(a);
     a.click();
@@ -181,9 +190,14 @@ a.href = url;
               </div>
             )}
             <h3 className={cn("text-xl font-semibold mb-2", aiStyles.articleTitle)}>{article.title || `Article ${index + 1}`}</h3>
-            <div className="prose prose-sm max-w-none text-foreground">
-              <p className="whitespace-pre-wrap">{article.summary}</p>
-            </div>
+            <div
+              className="prose prose-sm max-w-none text-foreground"
+              dangerouslySetInnerHTML={{
+                __html: article.contentType === 'html'
+                  ? (article.content || '')
+                  : marked.parse(article.content || '')
+              }}
+            />
             {article.url && (
               <div className="mt-4">
                 <Button variant="outline" size="sm" asChild>

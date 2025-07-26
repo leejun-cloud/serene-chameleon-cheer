@@ -21,9 +21,10 @@ import { saveNewsletter, SavedNewsletter } from "@/lib/storage";
 import { useRouter } from "next/navigation";
 
 const articleSchema = z.object({
-  url: z.string().url("Please enter a valid URL."),
+  url: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
   title: z.string().optional(),
-  summary: z.string().optional(),
+  content: z.string().optional(),
+  contentType: z.enum(['markdown', 'html']).default('markdown'),
   imageUrl: z.string().optional(),
 });
 
@@ -50,7 +51,7 @@ export function NewsletterForm({ onFormChange, initialData, newsletterId }: News
     defaultValues: {
       newsletterTitle: "Weekly Digest",
       newsletterSubject: "Your weekly news update!",
-      articles: [{ url: "", title: "", summary: "", imageUrl: "" }],
+      articles: [{ url: "", title: "", content: "", contentType: "markdown", imageUrl: "" }],
     },
   });
 
@@ -98,7 +99,8 @@ export function NewsletterForm({ onFormChange, initialData, newsletterId }: News
 
       const data = await response.json();
       form.setValue(`articles.${index}.title`, data.title, { shouldValidate: true });
-      form.setValue(`articles.${index}.summary`, data.summary, { shouldValidate:true });
+      form.setValue(`articles.${index}.content`, data.summary, { shouldValidate:true });
+      form.setValue(`articles.${index}.contentType`, 'markdown');
       form.setValue(`articles.${index}.imageUrl`, data.imageUrl, { shouldValidate: true });
       
       toast.success(`Article ${index + 1} summarized successfully!`, { id: toastId });
@@ -165,7 +167,7 @@ export function NewsletterForm({ onFormChange, initialData, newsletterId }: News
                   name={`articles.${index}.url`}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>URL</FormLabel>
+                      <FormLabel>URL (Optional)</FormLabel>
                       <FormControl>
                         <Input type="url" placeholder="https://example.com/article" {...field} />
                       </FormControl>
@@ -177,7 +179,7 @@ export function NewsletterForm({ onFormChange, initialData, newsletterId }: News
                   <Button
                     type="button"
                     onClick={() => handleSummarize(index)}
-                    disabled={summarizingIndex !== null}
+                    disabled={summarizingIndex !== null || !watch(`articles.${index}.url`)}
                     className="w-full"
                   >
                     {summarizingIndex === index ? (
@@ -214,23 +216,55 @@ export function NewsletterForm({ onFormChange, initialData, newsletterId }: News
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name={`articles.${index}.summary`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Summary</FormLabel>
-                      <FormControl><Textarea placeholder="Article summary appears here" className="min-h-[100px]" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                
+                <div>
+                  <FormLabel>기사 작성</FormLabel>
+                  <div className="flex items-center gap-2 my-2">
+                    <Button
+                      type="button"
+                      variant={watch(`articles.${index}.contentType`) === 'markdown' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => form.setValue(`articles.${index}.contentType`, 'markdown')}
+                    >
+                      Markdown
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={watch(`articles.${index}.contentType`) === 'html' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => form.setValue(`articles.${index}.contentType`, 'html')}
+                    >
+                      HTML
+                    </Button>
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name={`articles.${index}.content`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Textarea
+                            placeholder={
+                              watch(`articles.${index}.contentType`) === 'markdown'
+                                ? "마크다운을 사용하여 기사 내용을 작성하세요. 이미지: ![](image_url)"
+                                : "HTML을 사용하여 기사 내용을 작성하세요."
+                            }
+                            className="min-h-[200px] font-mono"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
                 <FormField
                   control={form.control}
                   name={`articles.${index}.imageUrl`}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Image URL</FormLabel>
+                      <FormLabel>Image URL (Optional)</FormLabel>
                       <FormControl><Input placeholder="Image URL appears here" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -252,7 +286,7 @@ export function NewsletterForm({ onFormChange, initialData, newsletterId }: News
           <Button
             type="button"
             variant="outline"
-            onClick={() => append({ url: "", title: "", summary: "", imageUrl: "" })}
+            onClick={() => append({ url: "", title: "", content: "", contentType: "markdown", imageUrl: "" })}
             className="w-full mt-4"
           >
             <PlusCircle className="mr-2 h-4 w-4" /> 다른 기사 추가
