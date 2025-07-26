@@ -5,10 +5,11 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Separator } from './ui/separator';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { Wand2, Loader2, Download, ExternalLink } from 'lucide-react';
+import { Wand2, Loader2, Download, ExternalLink, Send } from 'lucide-react'; // Added Send icon
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { marked } from 'marked';
+import { Input } from './ui/input'; // Added Input component
 
 interface AiStyles {
   card?: string;
@@ -28,6 +29,8 @@ export function NewsletterPreview({ data, isReadOnly = false }: NewsletterPrevie
   const [designPrompt, setDesignPrompt] = useState('');
   const [isRedesigning, setIsRedesigning] = useState(false);
   const [aiStyles, setAiStyles] = useState<AiStyles>({});
+  const [recipientEmail, setRecipientEmail] = useState(''); // New state for recipient email
+  const [isSendingEmail, setIsSendingEmail] = useState(false); // New state for email sending loading
 
   async function handleRedesign() {
     if (!designPrompt) {
@@ -150,6 +153,45 @@ export function NewsletterPreview({ data, isReadOnly = false }: NewsletterPrevie
     toast.success("Newsletter HTML downloaded!");
   };
 
+  const handleSendEmail = async () => {
+    if (!data) {
+      toast.error("No newsletter data to send.");
+      return;
+    }
+    if (!recipientEmail || !recipientEmail.includes('@')) {
+      toast.error("Please enter a valid recipient email address.");
+      return;
+    }
+
+    setIsSendingEmail(true);
+    const toastId = toast.loading(`Sending newsletter to ${recipientEmail}...`);
+
+    try {
+      const htmlContent = generateNewsletterHtml(data, aiStyles);
+      const response = await fetch('/api/send-newsletter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: recipientEmail,
+          subject: data.newsletterSubject,
+          htmlContent: htmlContent,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to send email.");
+      }
+
+      toast.success("Newsletter sent successfully!", { id: toastId });
+    } catch (error: any) {
+      console.error("Email sending error:", error);
+      toast.error(error.message || "An unexpected error occurred while sending the email.", { id: toastId });
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
   if (!data || !data.newsletterTitle) {
     return (
       <Card className="w-full max-w-2xl mx-auto shadow-lg">
@@ -234,6 +276,30 @@ export function NewsletterPreview({ data, isReadOnly = false }: NewsletterPrevie
             Redesign with AI
           </Button>
           
+          <Separator className="my-4 w-full" />
+
+          <div className="w-full">
+            <Label htmlFor="recipient-email" className="text-sm font-semibold flex items-center">
+              <Send className="mr-2 h-4 w-4" />
+              Send Newsletter via Gmail
+            </Label>
+            <p className="text-xs text-muted-foreground mt-1 mb-2">
+              Enter recipient email to send this newsletter. (Limited by Gmail API daily quota)
+            </p>
+            <Input
+              id="recipient-email"
+              type="email"
+              placeholder="recipient@example.com"
+              value={recipientEmail}
+              onChange={(e) => setRecipientEmail(e.target.value)}
+              className="mb-2"
+            />
+            <Button onClick={handleSendEmail} className="w-full" disabled={isSendingEmail}>
+              {isSendingEmail ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Send Email
+            </Button>
+          </div>
+
           <Separator className="my-4 w-full" />
 
           <div className="w-full">
