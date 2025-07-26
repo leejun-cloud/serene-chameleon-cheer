@@ -55,13 +55,19 @@ export function NewsletterForm({ onFormChange }: NewsletterFormProps) {
     name: "articles",
   });
 
-  // Watch for all form changes
-  const watchedValues = form.watch();
-
-  // A more robust effect to update the parent component (and thus the preview)
+  // This is the correct way to subscribe to form changes and update the parent
+  // without causing an infinite loop.
+  const { watch } = form;
   useEffect(() => {
-    onFormChange(watchedValues);
-  }, [watchedValues, onFormChange]);
+    // Set initial data for the preview on first render
+    onFormChange(form.getValues());
+    
+    const subscription = watch((value) => {
+      onFormChange(value as NewsletterFormData);
+    });
+    
+    return () => subscription.unsubscribe();
+  }, [watch, onFormChange, form]);
 
 
   async function handleSummarize(index: number) {
