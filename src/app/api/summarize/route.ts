@@ -19,6 +19,7 @@ export async function POST(request: Request) {
 
     const genAI = new GoogleGenerativeAI(apiKey);
 
+    // Fetching HTML content from the URL
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -31,16 +32,14 @@ export async function POST(request: Request) {
     const $ = cheerio.load(html);
 
     // 1. Extract Title
-    const title = $('head > title').text() || $('h1').first().text();
+    const title = $('head > title').text() || $('h1').first().text() || $('meta[property="og:title"]').attr('content') || 'Untitled';
 
     // 2. Extract Representative Image (og:image is best)
     let imageUrl = $('meta[property="og:image"]').attr('content');
     if (!imageUrl) {
-      // Fallback to the first large image
       $('img').each((i, elem) => {
         const src = $(elem).attr('src');
         if (src) {
-          // A simple check for a reasonably sized image
           const width = Number($(elem).attr('width')) || 0;
           const height = Number($(elem).attr('height')) || 0;
           if (width > 200 || height > 200) {
@@ -50,17 +49,36 @@ export async function POST(request: Request) {
         }
       });
     }
-    // Ensure the URL is absolute
     if (imageUrl && !imageUrl.startsWith('http')) {
-      imageUrl = new URL(imageUrl, url).href;
+      try {
+        imageUrl = new URL(imageUrl, url).href;
+      } catch (e) {
+        console.warn(`Could not construct absolute URL for image: ${imageUrl}`);
+        imageUrl = '';
+      }
     }
 
+    // 3. Improved content extraction
+    $('script, style, nav, footer, header, aside, form, noscript').remove();
+    
+    let mainContent = '';
+    // Try to find semantic main content tags first
+    const mainTagContent = $('main').text();
+    const articleTagContent = $('article').text();
 
-    // 3. Extract and clean content for summary
-    $('script, style, nav, footer, header, aside, form').remove();
-    const mainContent = $('body').text().replace(/\s\s+/g, ' ').trim();
-    if (!mainContent) {
-      throw new Error('Could not extract meaningful content from the URL.');
+    if (mainTagContent && mainTagContent.trim().length > 200) {
+      mainContent = mainTagContent;
+    } else if (articleTagContent && articleTagContent.trim().length > 200) {
+      mainContent = articleTagContent;
+    } else {
+      // Fallback to the whole body if specific tags fail
+      mainContent = $('body').text();
+    }
+    
+    mainContent = mainContent.replace(/\s\s+/g, ' ').trim();
+
+    if (!mainContent || mainContent.length < 100) {
+      throw new Error('Could not extract sufficient meaningful content from the URL. The page might be rendered with JavaScript or be too sparse.');
     }
 
     // 4. Generate Summary with Gemini
