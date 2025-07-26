@@ -5,7 +5,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Separator } from './ui/separator';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { Wand2, Loader2, Download } from 'lucide-react';
+import { Wand2, Loader2, Download, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -85,6 +85,13 @@ export function NewsletterPreview({ data, isReadOnly = false }: NewsletterPrevie
         <div class="prose prose-sm max-w-none">
           <p style="white-space: pre-wrap;">${article.summary || ''}</p>
         </div>
+        ${article.url ? `
+        <div style="margin-top: 1rem;">
+          <a href="${article.url}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 0.5rem 1rem; border: 1px solid #e5e7eb; border-radius: 0.375rem; text-decoration: none; color: #374151; font-size: 0.875rem;">
+            기사 보기
+          </a>
+        </div>
+        ` : ''}
       </div>
       ${index < newsletterData.articles.length - 1 ? '<hr class="my-6 border-gray-200" />' : ''}
     `
@@ -177,6 +184,16 @@ a.href = url;
             <div className="prose prose-sm max-w-none text-foreground">
               <p className="whitespace-pre-wrap">{article.summary}</p>
             </div>
+            {article.url && (
+              <div className="mt-4">
+                <Button variant="outline" size="sm" asChild>
+                  <a href={article.url} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    기사 보기
+                  </a>
+                </Button>
+              </div>
+            )}
             {index < data.articles.length - 1 && <Separator className="my-8" />}
           </div>
         ))}
