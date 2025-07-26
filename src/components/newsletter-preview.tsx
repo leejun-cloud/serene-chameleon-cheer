@@ -5,11 +5,10 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Separator } from './ui/separator';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { Wand2, Loader2, Download, ExternalLink, Send, Users } from 'lucide-react'; // Added Users icon
+import { Wand2, Loader2, Download, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { Input } from './ui/input';
-import { generateNewsletterHtml } from '@/lib/newsletter-html-generator'; // Import from utility
+import { marked } from 'marked';
 
 interface AiStyles {
   card?: string;
@@ -29,9 +28,6 @@ export function NewsletterPreview({ data, isReadOnly = false }: NewsletterPrevie
   const [designPrompt, setDesignPrompt] = useState('');
   const [isRedesigning, setIsRedesigning] = useState(false);
   const [aiStyles, setAiStyles] = useState<AiStyles>({});
-  const [recipientEmail, setRecipientEmail] = useState('');
-  const [isSendingEmail, setIsSendingEmail] = useState(false);
-  const [isSendingBulk, setIsSendingBulk] = useState(false); // New state for bulk sending loading
 
   async function handleRedesign() {
     if (!designPrompt) {
@@ -66,6 +62,76 @@ export function NewsletterPreview({ data, isReadOnly = false }: NewsletterPrevie
     }
   }
 
+  const generateNewsletterHtml = (
+    newsletterData: NewsletterFormData,
+    styles: AiStyles
+  ): string => {
+    const articlesHtml = newsletterData.articles
+      .map(
+        (article, index) => {
+          const contentHtml = article.contentType === 'html'
+            ? (article.content || '')
+            : marked.parse(article.content || '');
+          
+          return `
+            <div class="${cn('py-4', styles.articleContainer)}">
+              ${
+                article.imageUrl
+                  ? `
+                <div style="position: relative; width: 100%; padding-bottom: 56.25%; overflow: hidden; border-radius: 0.5rem; margin-bottom: 1rem;">
+                  <img
+                    src="${article.imageUrl}"
+                    alt="${article.title || 'Article Image'}"
+                    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;"
+                  />
+                </div>`
+                  : ''
+              }
+              <h3 class="${cn('text-xl font-semibold mb-2', styles.articleTitle)}">${article.title || ''}</h3>
+              <div class="prose prose-sm max-w-none">
+                ${contentHtml}
+              </div>
+              ${article.url ? `
+              <div style="margin-top: 1rem;">
+                <a href="${article.url}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 0.5rem 1rem; border: 1px solid #e5e7eb; border-radius: 0.375rem; text-decoration: none; color: #374151; font-size: 0.875rem;">
+                  기사 보기
+                </a>
+              </div>
+              ` : ''}
+            </div>
+            ${index < newsletterData.articles.length - 1 ? '<hr class="my-6 border-gray-200" />' : ''}
+          `
+        }
+      )
+      .join('');
+
+    return `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-T-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${newsletterData.newsletterTitle}</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+      </head>
+      <body class="bg-gray-100 p-4 md:p-8">
+        <div class="${cn('w-full max-w-2xl mx-auto shadow-lg bg-white rounded-lg overflow-hidden', styles.card)}">
+          <header class="${cn('p-6', styles.header)}">
+            <h1 class="${cn('text-3xl font-bold text-center', styles.mainTitle)}">${newsletterData.newsletterTitle}</h1>
+            <p class="text-center text-sm text-gray-500 mt-2">Subject: ${newsletterData.newsletterSubject}</p>
+          </header>
+          <main class="p-6">
+            ${articlesHtml}
+            <div class="text-center text-xs text-gray-400 pt-6 border-t border-gray-200 mt-8">
+              <p>&copy; ${new Date().getFullYear()} <a href="#" target="_blank" rel="noopener noreferrer" style="text-decoration: underline; color: #3b82f6;">Your Company</a>. All rights reserved.</p>
+            </div>
+          </main>
+        </div>
+      </body>
+      </html>
+    `;
+  };
+
   const handleDownloadHtml = () => {
     if (!data) {
       toast.error("No newsletter data to download.");
@@ -82,83 +148,6 @@ export function NewsletterPreview({ data, isReadOnly = false }: NewsletterPrevie
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     toast.success("Newsletter HTML downloaded!");
-  };
-
-  const handleSendEmail = async () => {
-    if (!data) {
-      toast.error("No newsletter data to send.");
-      return;
-    }
-    if (!recipientEmail || !recipientEmail.includes('@')) {
-      toast.error("Please enter a valid recipient email address.");
-      return;
-    }
-
-    setIsSendingEmail(true);
-    const toastId = toast.loading(`Sending newsletter to ${recipientEmail}...`);
-
-    try {
-      const htmlContent = generateNewsletterHtml(data, aiStyles);
-      const response = await fetch('/api/send-newsletter', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: recipientEmail,
-          subject: data.newsletterSubject,
-          htmlContent: htmlContent,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to send email.");
-      }
-
-      toast.success("Newsletter sent successfully!", { id: toastId });
-    } catch (error: any) {
-      console.error("Email sending error:", error);
-      toast.error(error.message || "An unexpected error occurred while sending the email.", { id: toastId });
-    } finally {
-      setIsSendingEmail(false);
-    }
-  };
-
-  const handleSendBulkEmail = async () => {
-    if (!data) {
-      toast.error("No newsletter data to send.");
-      return;
-    }
-
-    setIsSendingBulk(true);
-    const toastId = toast.loading("Sending newsletter to all subscribers...");
-
-    try {
-      const response = await fetch('/api/send-bulk-newsletter', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          newsletterData: data,
-          aiStyles: aiStyles,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to send bulk email.");
-      }
-
-      const result = await response.json();
-      toast.success(result.message, { id: toastId });
-      if (result.failedCount > 0) {
-        toast.warning(`${result.failedCount} emails failed to send. Check server logs for details.`);
-      }
-
-    } catch (error: any) {
-      console.error("Bulk email sending error:", error);
-      toast.error(error.message || "An unexpected error occurred while sending bulk emails.", { id: toastId });
-    } finally {
-      setIsSendingBulk(false);
-    }
   };
 
   if (!data || !data.newsletterTitle) {
@@ -245,47 +234,6 @@ export function NewsletterPreview({ data, isReadOnly = false }: NewsletterPrevie
             Redesign with AI
           </Button>
           
-          <Separator className="my-4 w-full" />
-
-          <div className="w-full">
-            <Label htmlFor="recipient-email" className="text-sm font-semibold flex items-center">
-              <Send className="mr-2 h-4 w-4" />
-              Send Newsletter via Gmail (Single Recipient)
-            </Label>
-            <p className="text-xs text-muted-foreground mt-1 mb-2">
-              Enter recipient email to send this newsletter. (Limited by Gmail API daily quota)
-            </p>
-            <Input
-              id="recipient-email"
-              type="email"
-              placeholder="recipient@example.com"
-              value={recipientEmail}
-              onChange={(e) => setRecipientEmail(e.target.value)}
-              className="mb-2"
-            />
-            <Button onClick={handleSendEmail} className="w-full" disabled={isSendingEmail}>
-              {isSendingEmail ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Send Email
-            </Button>
-          </div>
-
-          <Separator className="my-4 w-full" />
-
-          <div className="w-full">
-            <Label className="text-sm font-semibold flex items-center">
-              <Users className="mr-2 h-4 w-4" />
-              Send to All Subscribers (Bulk)
-            </Label>
-            <p className="text-xs text-muted-foreground mt-1 mb-2">
-              Sends this newsletter to all active subscribers in your database.
-              <span className="font-bold text-red-500"> (Subject to Gmail API rate limits: ~500-2000 emails/day)</span>
-            </p>
-            <Button onClick={handleSendBulkEmail} className="w-full" disabled={isSendingBulk}>
-              {isSendingBulk ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Send to All Subscribers
-            </Button>
-          </div>
-
           <Separator className="my-4 w-full" />
 
           <div className="w-full">
