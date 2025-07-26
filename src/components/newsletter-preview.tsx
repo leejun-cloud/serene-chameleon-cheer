@@ -3,9 +3,9 @@ import { NewsletterFormData } from './newsletter-form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from './ui/separator';
-import { Label } from './components/ui/label';
+import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { Wand2, Loader2, Download, ExternalLink } from 'lucide-react';
+import { Wand2, Loader2, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -85,21 +85,6 @@ export function NewsletterPreview({ data, isReadOnly = false }: NewsletterPrevie
         <div class="prose prose-sm max-w-none">
           <p style="white-space: pre-wrap;">${article.summary || ''}</p>
         </div>
-        ${
-          article.url
-            ? `
-          <div style="margin-top: 1rem;">
-            <a href="${article.url}" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; font-size: 0.875rem; line-height: 1.25rem; color: #3b82f6; text-decoration: none; padding: 0.25rem 0.5rem; border-radius: 0.375rem; transition: background-color 0.2s;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 0.5rem;">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                <polyline points="15 3 21 3 21 9"></polyline>
-                <line x1="10" x2="21" y1="14" y2="3"></line>
-              </svg>
-              기사 보기
-            </a>
-          </div>`
-            : ''
-        }
       </div>
       ${index < newsletterData.articles.length - 1 ? '<hr class="my-6 border-gray-200" />' : ''}
     `
@@ -192,16 +177,6 @@ a.href = url;
             <div className="prose prose-sm max-w-none text-foreground">
               <p className="whitespace-pre-wrap">{article.summary}</p>
             </div>
-            {article.url && (
-              <div className="mt-4">
-                <Button variant="link" size="sm" asChild>
-                  <a href={article.url} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    기사 보기
-                  </a>
-                </Button>
-              </div>
-            )}
             {index < data.articles.length - 1 && <Separator className="my-8" />}
           </div>
         ))}
