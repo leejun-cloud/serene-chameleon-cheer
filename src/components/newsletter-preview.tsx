@@ -115,7 +115,7 @@ export function NewsletterPreview({ data, isReadOnly = false }: NewsletterPrevie
           <main class="p-6">
             ${articlesHtml}
             <div class="text-center text-xs text-gray-400 pt-6 border-t border-gray-200 mt-8">
-              <p>&copy; ${new Date().getFullYear()} Your Company. All rights reserved.</p>
+              <p>&copy; ${new Date().getFullYear()} <a href="#" target="_blank" rel="noopener noreferrer" style="text-decoration: underline; color: #3b82f6;">Your Company</a>. All rights reserved.</p>
             </div>
           </main>
         </div>
@@ -133,7 +133,7 @@ export function NewsletterPreview({ data, isReadOnly = false }: NewsletterPrevie
     const blob = new Blob([htmlContent], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
+a.href = url;
     a.download = `${data.newsletterTitle.replace(/\s+/g, '_').toLowerCase()}_newsletter.html`;
     document.body.appendChild(a);
     a.click();
@@ -182,7 +182,13 @@ export function NewsletterPreview({ data, isReadOnly = false }: NewsletterPrevie
         ))}
         
         <div className="text-center text-xs text-muted-foreground pt-6 border-t border-border mt-8">
-          <p>&copy; {new Date().getFullYear()} Your Company. All rights reserved.</p>
+          <p>
+            &copy; {new Date().getFullYear()}{' '}
+            <a href="#" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">
+              Your Company
+            </a>
+            . All rights reserved.
+          </p>
         </div>
       </CardContent>
       {!isReadOnly && (
